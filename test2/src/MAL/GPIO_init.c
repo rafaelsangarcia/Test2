@@ -46,129 +46,32 @@
 
 /* Includes */
 /*============================================================================*/
-#include "APP/Up_Down.h"
+#include "MAL/GPIO_init.h"
+
+
+
 /* Constants and types  */
 /*============================================================================*/
+
+
+
 /* Variables */
-extern int switch_flag;
-extern int lpit0_ch0_flag_counter;
-extern int lpit0_ch1_flag_counter;
-
-int flag = 0;
-int temp = 0;
 /*============================================================================*/
+
+
+
 /* Private functions prototypes */
-void OneTouch_UP();
-void OneTouch_Down();
-void behavior_UP();
-void behavior_Down();
-void antiPinch();
-void idleState();
-
 /*============================================================================*/
+
+
+
 /* Inline functions */
-int main(void) {
-	/*** Processor Expert internal initialization. DON'T REMOVE THIS CODE!!! ***/
-  #ifdef PEX_RTOS_INIT
-  	PEX_RTOS_INIT();                   /* Initialization of the selected RTOS. Macro is defined by the RTOS component. */
-  #endif
-	/*** End of Processor Expert internal initialization.                    ***/
-
-
-	//init_primary_function();
-	WDOG_disable();
-	PORT_init(); /* Configure ports */
-	SOSC_init_8MHz(); /* Initialize system oscillator for 8 MHz xtal */
-	SPLL_init_160MHz(); /* Initialize sysclk to 160 MHz with 8 MHz SOSC */
-	NormalRUNmode_80MHz(); /* Init clocks: 80 MHz sysclk & core, 40 MHz bus, 20 MHz flash */
-	LPIT0_init(); /* Initialize PIT0 for 1 second timeout */
-	lpit0_ch0_flag_counter++; /* Increment LPIT0 timeout counter */
-	clear_GPIO(); //clear PORTS
-
-
-	for (;;) {
-		if(Push_UpButton() == 1){
-			timer();
-			if(validation_10ms() == 1){
-        behavior_UP();
-			}
-		}
-		if (flag == 1){
-      antiPinch();
-		}
-		if(Push_DownButton() == 1){
-		  timer();
-			if(validation_10ms() == 1){
-        behavior_Down();
-			}
-		}
-		if (Push_DownButton() == 0 && Push_UpButton() == 0) {
-			idleState();
-		}
-  }
-}
-
-
 /*============================================================================*/
+
+
+
+
 /* Private functions */
-void OneTouch_UP(){
-  temp = switch_flag;
-  while(temp < 9){
-    Manual_up();
-    if(Push_Antipinch() == 1){
-      default_Leds(3);
-      temp = 9;
-      flag = 1;
-    }
-    else {
-      temp = switch_flag;
-      flag = 0;
-    }
-  }
-}
-void OneTouch_Down(){
-  while(switch_flag >=0){
-    Manual_down();
-  }
-}
-void behavior_UP(){
-  if( Push_UpButton() == 0 ){ //up_off
-    if(validation_500ms() == 0){
-      OneTouch_UP();
-    }
-   }
-  else{
-    if(validation_500ms() == 1){
-      Manual_up();
-    }
-  }
-}
-void behavior_Down(){
-  if( Push_DownButton() == 0 ){ //up_off
-    if(validation_500ms() == 0){
-      OneTouch_Down();
-    }
-  }
-  else {
-    if(validation_500ms() == 1){
-        Manual_down();
-    }
-  }
-}
-void antiPinch(){
-  OneTouch_Down();
-  default_Leds(0);
-  flag = 0;
-  lpit0_ch1_flag_counter = 0;
-  while (lpit0_ch1_flag_counter <= 5000){
-    timer();
-  }
-  lpit0_ch1_flag_counter = 0;
-}
-void idleState(){
-  default_Leds(0);
-  lpit0_ch1_flag_counter = 0;
-}
 /*============================================================================*/
 
 /** Check if action is allowed by overload protection.
@@ -178,7 +81,71 @@ void idleState(){
  a certain activation of the motors.
  \returns TRUE if the activation is allowed, FALSE if not
 */
+//uint8 algreqg_olp_CheckOLPAllow(uint8 ReqestedAction_u8,       /**< the requested action to be performed (e.g. unlock) */
+//                                uint16 RequestedComponent_u16  /**< the mask of the doors which motors to be activated (e.g. front doors) */
+//                                )
+//{
+//	return 0;
+//}
+
+
 /* Exported functions */
 /*============================================================================*/
+void PORT_init (void) {/*Initializing the PORTS*/
+	PCC-> PCCn[PCC_PORTD_INDEX] = PCC_PCCn_CGC_MASK; /* Enable clock for PORT D */
+	PCC-> PCCn[PCC_PORTC_INDEX] = PCC_PCCn_CGC_MASK; /* Enable clock for PORT D */
+	PCC-> PCCn[PCC_PORTB_INDEX] = PCC_PCCn_CGC_MASK; /* Enable clock for PORT D */
+	PCC-> PCCn[PCC_PORTE_INDEX] = PCC_PCCn_CGC_MASK; /* Enable clock for PORT D */
 
+	PTD->PDDR |= 1<<BlueLed; /* Port D0: Data Direction= output */
+	PTD->PDDR |= 1<<RedLed; /* Port D15: Data Direction= output */
+	PTD->PDDR |= 1<<GreenLed; /* Port D16: Data Direction= output */
+	PTC->PDDR |= 1<<LedBar_1;/*Port C7: Data Direction= output*/
+	PTB->PDDR |= 1<<LedBar_2;
+	PTB->PDDR |= 1<<LedBar_3;
+	PTB->PDDR |= 1<<LedBar_4;
+	PTB->PDDR |= 1<<LedBar_5;
+	PTC->PDDR |= 1<<LedBar_6;
+	PTC->PDDR |= 1<<LedBar_7;
+	PTE->PDDR |= 1<<LedBar_8;
+	PTE->PDDR |= 1<<LedBar_9;
+	PTE->PDDR |= 1<<LedBar_10;
+	PTC->PDDR &= ~(1<<UpButton);/*PORT C12: Data Direction= input*/
+	PTC->PDDR &= ~(1<<DownButton);/*PORT C13: Data Direction= input*/
+	PTE->PDDR &= ~(1<<Antipinch);
+
+	PORTD->PCR[BlueLed]  = 0x00000100; /* Port D0: MUX = ALT1, GPIO (to blue LED on EVB) */
+	PORTD->PCR[RedLed] = 0x00000100; /* Port D0: MUX = ALT1, GPIO (to red LED on EVB) */
+	PORTD->PCR[GreenLed] = 0x00000100; /* Port D0: MUX = ALT1, GPIO (to green LED on EVB) */
+	PORTC->PCR[LedBar_1] = 0x00000100;
+	PORTB->PCR[LedBar_2] = 0x00000100;
+	PORTB->PCR[LedBar_3] = 0x00000100;
+	PORTB->PCR[LedBar_4] = 0x00000100;
+	PORTB->PCR[LedBar_5] = 0x00000100;
+	PORTC->PCR[LedBar_6] = 0x00000100;
+	PORTC->PCR[LedBar_7] = 0x00000100;
+	PORTE->PCR[LedBar_8] = 0x00000100;
+	PORTE->PCR[LedBar_9] = 0x00000100;
+	PORTE->PCR[LedBar_10] = 0x00000100;
+	PORTC->PCR[UpButton] = 0x00000110;
+	PORTC->PCR[DownButton] = 0x00000110;
+	PORTE->PCR[Antipinch] = 0x00000110;
+}
+
+void LPIT0_init (void) {
+	PCC->PCCn[PCC_LPIT_INDEX] = PCC_PCCn_PCS(6); /* Clock Src = 6 (SPLL2_DIV2_CLK)*/
+	PCC->PCCn[PCC_LPIT_INDEX] |= PCC_PCCn_CGC_MASK; /* Enable clk to LPIT0 regs */
+	LPIT0->MCR = 0x00000001; /* M_CEN=1: enable module clk (allows writing other LPIT0 regs)*/
+	LPIT0->TMR[0].TVAL = 16000000; /*16000000=400 ms*/
+	LPIT0->TMR[1].TVAL = 40000;//40000= 1 ms
+	LPIT0->TMR[0].TCTRL = 0x00000001; // Timer 0 is enabled
+	LPIT0->TMR[1].TCTRL = 0x00000101;//Timer 1 is enabled
+
+}
+
+void WDOG_disable (void) {
+	WDOG->CNT=0xD928C520; /*Unlock watchdog*/
+	WDOG->TOVAL=0x0000FFFF; /*Maximum timeout value*/
+	WDOG->CS = 0x00002100; /*Disable watchdog*/
+}
  /* Notice: the file ends with a blank new line to avoid compiler warnings */
